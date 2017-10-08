@@ -1,0 +1,41 @@
+---
+
+- hosts: azure_vms 
+  vars: 
+     ipa_server: freeipa-server.womeninlinux.com
+  become: yes
+  tasks:
+    - name: Setting up the epel
+      yum:  
+         name: "https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm"
+         state: present
+    - name: Installing python and pip
+      yum: name={{item}} state=present
+      with_items:
+           - python
+           - python-pip
+    - name: Installing pexpect
+      yum:  name={{item}} state=present
+      with_items:
+          - pexpect.noarch
+    - lineinfile:
+           dest: /etc/resolv.conf
+           regexp: '^search'
+           line:  'search womeninlinux.com'
+    - name: Ensuring nameservers are setup
+      blockinfile:
+           dest: /etc/resolv.conf
+           block: |
+              {{ item.ip }} {{item.name}}
+           #marker: "# {mark} ANSIBLE MANAGED BLOCK {{ item.ip }}"
+      with_items:
+           - { name: freeipa-server.womeninlinux.com,ip: 13.82.173.64 }
+    - name: Installing ipa-server
+      yum: name=ipa-server state=present
+    - name:  Adding ipa-admintools
+      yum:  name=ipa-admintools state=present
+    - name:  Installing bind-dyndb-ldap
+      yum:   name=bind-dyndb-ldap state=present
+    - command: "ipa-server-install --domain=womeninlinux.com --hostname={{ ipa_server }} --realm=WOMENINLINUX.COM --admin-password somepassword --ds-password somepassword --unattended"
+    - name: Running kinit admin
+      shell: echo "somepassword" | kinit admin
