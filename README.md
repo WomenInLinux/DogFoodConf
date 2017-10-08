@@ -33,6 +33,8 @@ https://www.terraform.io/docs/providers/azurerm/authenticating_via_service_princ
 
 Please note setting up the role as OWNER is key. Also having these four credentials (needed for terraform)
 subscription and tenant ids can be obtained from the portal
+
+
 {
   "appId": "a487e0c1-82af-47d9-9a0b-af184eb87646d",
   "displayName": "MyDemoWebApp",
