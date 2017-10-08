@@ -1,0 +1,338 @@
+variable "resourcename" {
+	default = "CENTOS_VM"
+}
+
+
+provider "azurerm" {
+	subscription_id = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+	client_id =  "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+	client_secret = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+	tenant_id = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+}
+
+
+
+# Create a resource group if it doesn’t exist
+resource "azurerm_resource_group" "myterraform" {
+    name     = "CENTOS_VMS"
+    location = "East US"
+
+    tags {
+        environment = "DogFoodConf Demo"
+    }
+}
+
+# Create virtual network
+resource "azurerm_virtual_network" "myterraformnetwork" {
+    name                = "myVnet"
+    address_space       = ["10.0.0.0/16"]
+    location            = "East US"
+    resource_group_name = "${azurerm_resource_group.myterraform.name}"
+
+    tags {
+        environment = "DogFoodConf Demo"
+    }
+}
+
+# Create subnet
+resource "azurerm_subnet" "myterraformsubnet" {
+    name                 = "mySubnet"
+    resource_group_name  = "${azurerm_resource_group.myterraform.name}"
+    virtual_network_name = "${azurerm_virtual_network.myterraformnetwork.name}"
+    address_prefix       = "10.0.1.0/24"
+}
+
+# Create public IPs
+resource "azurerm_public_ip" "myterraformpublicip" {
+    name                         = "myPublicIP"
+    location                     = "East US"
+    resource_group_name          = "${azurerm_resource_group.myterraform.name}"
+    public_ip_address_allocation = "static"
+
+    tags {
+        environment = "DogFoodConf Demo"
+    }
+}
+
+# Create Network Security Group and rule
+resource "azurerm_network_security_group" "myterraformnsg" {
+    name                = "myNetworkSecurityGroup"
+    location            = "East US"
+    resource_group_name = "${azurerm_resource_group.myterraform.name}"
+
+    security_rule {
+        name                       = "SSH"
+        priority                   = 1001
+        direction                  = "Inbound"
+        access                     = "Allow"
+        protocol                   = "Tcp"
+        source_port_range          = "*"
+        destination_port_range     = "22"
+        source_address_prefix      = "*"
+        destination_address_prefix = "*"
+    }
+    security_rule {
+        name                       = "HTTPS"
+        priority                   = 1002
+        direction                  = "Inbound"
+        access                     = "Allow"
+        protocol                   = "Tcp"
+        source_port_range          = "*"
+        destination_port_range     = "443"
+        source_address_prefix      = "*"
+        destination_address_prefix = "*"
+    }
+    security_rule {
+        name                       = "HTTP"
+        priority                   = 1003
+        direction                  = "Inbound"
+        access                     = "Allow"
+        protocol                   = "Tcp"
+        source_port_range          = "*"
+        destination_port_range     = "80"
+        source_address_prefix      = "*"
+        destination_address_prefix = "*"
+    }
+    security_rule {
+        name                       = "LDAP"
+        priority                   = 1004
+        direction                  = "Inbound"
+        access                     = "Allow"
+        protocol                   = "Tcp"
+        source_port_range          = "*"
+        destination_port_range     = "389"
+        source_address_prefix      = "*"
+        destination_address_prefix = "*"
+    }
+    security_rule {
+        name                       = "LDAPS"
+        priority                   = 1005
+        direction                  = "Inbound"
+        access                     = "Allow"
+        protocol                   = "Tcp"
+        source_port_range          = "*"
+        destination_port_range     = "636"
+        source_address_prefix      = "*"
+        destination_address_prefix = "*"
+    }
+    security_rule {
+        name                       = "BIND"
+        priority                   = 1006
+        direction                  = "Inbound"
+        access                     = "Allow"
+        protocol                   = "*"
+        source_port_range          = "*"
+        destination_port_range     = "53"
+        source_address_prefix      = "*"
+        destination_address_prefix = "*"
+    }
+    security_rule {
+        name                       = "KERBEROS"
+        priority                   = 1007
+        direction                  = "Inbound"
+        access                     = "Allow"
+        protocol                   = "*"
+        source_port_range          = "*"
+        destination_port_range     = "88"
+        source_address_prefix      = "*"
+        destination_address_prefix = "*"
+    }
+    security_rule {
+        name                       = "KERBEROSv5"
+        priority                   = 1008
+        direction                  = "Inbound"
+        access                     = "Allow"
+        protocol                   = "*"
+        source_port_range          = "*"
+        destination_port_range     = "464"
+        source_address_prefix      = "*"
+        destination_address_prefix = "*"
+    }
+    security_rule {
+        name                       = "NTP"
+        priority                   = 1009
+        direction                  = "Inbound"
+        access                     = "Allow"
+        protocol                   = "Udp"
+        source_port_range          = "*"
+        destination_port_range     = "22"
+        source_address_prefix      = "*"
+        destination_address_prefix = "*"
+    }
+
+    tags {
+        environment = "DogFoodConf Demo"
+    }
+}
+
+# Create network interface
+resource "azurerm_network_interface" "myterraformnic" {
+    name                      = "myNIC"
+    location                  = "East US"
+    resource_group_name       = "${azurerm_resource_group.myterraform.name}"
+    network_security_group_id = "${azurerm_network_security_group.myterraformnsg.id}"
+
+    ip_configuration {
+        name                          = "myNicConfiguration"
+        subnet_id                     = "${azurerm_subnet.myterraformsubnet.id}"
+        private_ip_address_allocation = "dynamic"
+        public_ip_address_id          = "${azurerm_public_ip.myterraformpublicip.id}"
+    }
+
+    tags {
+        environment = "DogFoodConf Demo"
+    }
+}
+
+# Generate random text for a unique storage account name
+resource "random_id" "randomId" {
+    keepers = {
+        # Generate a new ID only when a new resource group is defined
+        resource_group = "${azurerm_resource_group.myterraform.name}"
+    }
+
+    byte_length = 8
+}
+
+# Create storage account for boot diagnostics
+resource "azurerm_storage_account" "mystorageaccount" {
+    name                = "diag${random_id.randomId.hex}"
+    resource_group_name = "${azurerm_resource_group.myterraform.name}"
+    location            = "East US"
+    account_type        = "Standard_LRS"
+
+    tags {
+        environment = "DogFoodConf Demo"
+    }
+}
+
+# Create virtual machine
+resource "azurerm_virtual_machine" "myterraformvm" {
+    name                  = "you can make this whatever"
+    location              = "East US"
+    resource_group_name   = "${azurerm_resource_group.myterraform.name}"
+    network_interface_ids = ["${azurerm_network_interface.myterraformnic.id}"]
+    vm_size               = "Standard_DS2_v2"
+
+    storage_os_disk {
+        name              = "myOsDisk"
+        caching           = "ReadWrite"
+        create_option     = "FromImage"
+        managed_disk_type = "Premium_LRS"
+    }
+
+    storage_image_reference {
+        publisher = "OpenLogic"
+        offer     = "CentOS-LVM"
+        sku       = "7-LVM"
+        version   = "latest"
+    }
+
+    os_profile {
+       computer_name  = "same as name"
+        admin_username = "someusername"
+    }
+
+    os_profile_linux_config {
+        disable_password_authentication = true
+       
+         ssh_keys {
+      		path = "/path to ssh/authorized keys"
+     		key_data = "ssh-rsa ssh keys"
+    	    }
+        }
+
+    boot_diagnostics {
+        enabled = "true"
+        storage_uri = "${azurerm_storage_account.mystorageaccount.primary_blob_endpoint}"
+    }
+
+    tags {
+        environment = "DogFoodConf Demo"
+    }
+    
+#    provisioner "local-exec" {
+#                command = "sleep 120"   
+  
+#	}
+}	
+
+# Create public IPs
+resource "azurerm_public_ip" "myclientterraformpublicip" {
+    name                         = "myclientPublicIP"
+    location                     = "East US"
+    resource_group_name          = "${azurerm_resource_group.myterraform.name}"
+    public_ip_address_allocation = "static"
+
+    tags {
+        environment = "DogFoodConf Demo"
+    }
+}
+
+
+# Create network interface
+resource "azurerm_network_interface" "myclientterraformnic" {
+    name                      = "myclientNIC"
+    location                  = "East US"
+    resource_group_name       = "${azurerm_resource_group.myterraform.name}"
+    network_security_group_id = "${azurerm_network_security_group.myterraformnsg.id}"
+
+    ip_configuration {
+        name                          = "myclientNicConfiguration"
+        subnet_id                     = "${azurerm_subnet.myterraformsubnet.id}"
+        private_ip_address_allocation = "dynamic"
+        public_ip_address_id          = "${azurerm_public_ip.myclientterraformpublicip.id}"
+    }
+
+    tags {
+        environment = "DogFoodConf Demo"
+    }
+}
+
+# Create virtual machine freeipaclient
+
+resource "azurerm_virtual_machine" "myfreeipaclient" {
+    name                  = "freeipa-client.womeninlinux.com"
+    location              = "East US"
+    resource_group_name   = "${azurerm_resource_group.myterraform.name}"
+    network_interface_ids = ["${azurerm_network_interface.myclientterraformnic.id}"]
+    vm_size               = "Standard_DS1_v2"
+
+    storage_os_disk {
+        name              = "myclientOsDisk"
+        caching           = "ReadWrite"
+        create_option     = "FromImage"
+        managed_disk_type = "Premium_LRS"
+    }
+
+    storage_image_reference {
+        publisher = "OpenLogic"
+        offer     = "CentOS-LVM"
+        sku       = "7-LVM"
+        version   = "latest"
+    }
+
+    os_profile {
+        computer_name  = "freeipaclient"
+        admin_username = "adminuser"
+    }
+
+    os_profile_linux_config {
+        disable_password_authentication = true
+
+         ssh_keys {
+                path = "/path to authorized user/authorized_keys"
+
+            }
+        }
+
+    boot_diagnostics {
+        enabled = "true"
+        storage_uri = "${azurerm_storage_account.mystorageaccount.primary_blob_endpoint}"
+    }
+
+    tags {
+        environment = "DogFoodConf Demo"
+    }
+}
+
