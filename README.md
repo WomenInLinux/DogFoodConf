@@ -49,7 +49,7 @@ This is something to get you started
 https://www.terraform.io/intro/getting-started/build.html
 
 I have attached the files I used for my talk. You can change them according to your infrastructure
-
+Please make sure you chage the file to something.tf
 
 
 
