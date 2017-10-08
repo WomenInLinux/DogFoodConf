@@ -51,5 +51,8 @@ https://www.terraform.io/intro/getting-started/build.html
 I have attached the files I used for my talk. You can change them according to your infrastructure
 Please make sure you chage the file to something.tf
 
+6. After you have built your infrastructure then you can now install Freeipa. The .tf was setup for the correct size and ports that you needed open. We will use ansible to do this install for server and the client.
+
+Please see attachment for your .yml file. You will need to place your hosts in /etc/ansible/hosts file.
 
 
